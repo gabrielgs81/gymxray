@@ -8,7 +8,7 @@ export interface QuizState {
   index: number;
   ultima_pergunta_respondida: string | null;
   completed: boolean;
-  events: { name: string; at: string; payload?: Record<string, unknown> }[];
+  events: { name: string; at: string; payload?: Record<string, unknown> | undefined }[];
 }
 
 function uuid(): string {

@@ -85,14 +85,16 @@ export function ResultPreview({
           <AlertTriangle className="size-5 shrink-0 text-warning" />
           <p className="text-sm">
             <strong>{diagnosis.alertas.length}</strong>{" "}
-            {novo ? "pontos de atenção podem impactar a viabilidade" : "indicadores merecem atenção"}
+            {novo
+              ? `ponto${diagnosis.alertas.length === 1 ? "" : "s"} de atenção pode${diagnosis.alertas.length === 1 ? "" : "m"} impactar a viabilidade`
+              : `indicador${diagnosis.alertas.length === 1 ? "" : "es"} merece${diagnosis.alertas.length === 1 ? "" : "m"} atenção`}
           </p>
         </div>
         <div className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4">
           <Sparkles className="size-5 shrink-0 text-primary" />
           <p className="text-sm">
-            Identificamos <strong>{diagnosis.oportunidades.length}</strong> oportunidades de
-            melhoria
+            Identificamos <strong>{diagnosis.oportunidades.length}</strong> oportunidade
+            {diagnosis.oportunidades.length === 1 ? "" : "s"} de melhoria
           </p>
         </div>
       </div>

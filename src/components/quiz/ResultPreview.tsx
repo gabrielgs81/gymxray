@@ -46,7 +46,7 @@ export function ResultPreview({
             {scores.score_geral}
             <span className="text-2xl text-muted-foreground">/100</span>
           </p>
-          <p className="mt-2 text-sm capitalize text-foreground/80">{diagnosis.classificacao}</p>
+          <p className="mt-2 text-sm text-foreground/80 first-letter:uppercase">{diagnosis.classificacao}</p>
         </div>
         <p className="text-xs text-muted-foreground">
           Índice Raio-X é uma metodologia própria de leitura do seu negócio, não um benchmark

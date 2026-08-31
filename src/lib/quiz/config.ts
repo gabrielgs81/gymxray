@@ -88,8 +88,7 @@ export const bottleneckLabels: Record<string, string> = {
 };
 
 export function classify(score: number, novo = false): string {
-  const range =
-    scoreConfig.ranges.find((r) => score >= r.min && score <= r.max) ??
-    scoreConfig.ranges[scoreConfig.ranges.length - 1];
+  const ranges = scoreConfig.ranges;
+  const range = ranges.find((r) => score >= r.min && score <= r.max) ?? ranges[ranges.length - 1]!;
   return novo ? range.labelNovo : range.label;
 }

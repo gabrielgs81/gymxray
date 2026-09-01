@@ -1,9 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowRight, BarChart3, Gauge, ShieldCheck } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { QuizFlow } from "@/components/quiz/QuizFlow";
+import { trackPageView } from "@/lib/quiz/analytics";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -29,6 +30,10 @@ export const Route = createFileRoute("/")({
 
 function Index() {
   const [started, setStarted] = useState(false);
+
+  useEffect(() => {
+    void trackPageView();
+  }, []);
 
   if (started) return <QuizFlow />;
 

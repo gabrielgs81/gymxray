@@ -1,11 +1,7 @@
 export type Path = "novo_negocio" | "operacao_existente";
 
 export type ObjetivoPrincipal =
-  | "abrir_primeira"
-  | "melhorar_atual"
-  | "expandir_atual"
-  | "segunda_unidade"
-  | "estudando";
+  "abrir_primeira" | "melhorar_atual" | "expandir_atual" | "segunda_unidade" | "estudando";
 
 export interface Lead {
   lead_id: string;
@@ -54,11 +50,15 @@ export interface Metrics {
   cac_pago: number | null;
   churn_aproximado: number | null;
   crescimento_liquido: number | null;
+  taxa_crescimento_liquido: number | null;
   ltv_simplificado: number | null;
   runway_meses: number | null;
   alunos_por_m2: number | null;
   receita_por_m2: number | null;
   gap_expansao: number | null;
+  cobertura_capital_expansao: number | null;
+  capital_efetivo_disponivel: number | null;
+  financiamento_aprovado: number | null;
 }
 
 export interface Scores {
@@ -68,6 +68,14 @@ export interface Scores {
   score_retencao: number | null;
   score_operacional: number | null;
   score_crescimento: number | null;
+  score_estrutura_capital?: number | null;
+  score_seguranca_caixa?: number | null;
+  score_economia_operacional?: number | null;
+  score_evidencia_demanda?: number | null;
+  score_maturidade_projeto?: number | null;
+  prontidao_expansao?: number | null;
+  confianca_diagnostico?: number;
+  visibilidade_gestao?: number;
   score_viabilidade?: number | null;
 }
 
@@ -76,6 +84,9 @@ export interface Diagnosis {
   principal_gargalo: string;
   alertas: string[];
   oportunidades: string[];
+  classificacao_expansao?: string | null;
+  classificacao_confianca?: string;
+  parcial?: boolean;
 }
 
 export interface DiagnosticResult {

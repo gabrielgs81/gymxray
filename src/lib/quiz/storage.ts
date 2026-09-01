@@ -1,8 +1,13 @@
 import type { Answers, Lead } from "./types";
+import { createAnalyticsIdentity } from "./analytics";
 
-const STORAGE_KEY = "raiox_quiz_v1";
+// v2 changes the progress index from individual questions to grouped subject screens.
+const STORAGE_KEY = "raiox_quiz_v4";
 
 export interface QuizState {
+  visitor_id: string;
+  session_id: string;
+  write_token: string;
   lead: Lead;
   answers: Answers;
   index: number;
@@ -17,7 +22,9 @@ function uuid(): string {
 }
 
 export function createInitialState(): QuizState {
+  const identity = createAnalyticsIdentity();
   return {
+    ...identity,
     lead: {
       lead_id: uuid(),
       nome: null,
@@ -46,7 +53,16 @@ export function loadState(): QuizState | null {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as QuizState;
+    const parsed = JSON.parse(raw) as Partial<QuizState>;
+    if (!parsed.lead || !parsed.answers) return null;
+    const identity = createAnalyticsIdentity();
+    return {
+      ...(parsed as QuizState),
+      visitor_id: parsed.visitor_id ?? identity.visitor_id,
+      session_id: parsed.session_id ?? parsed.lead.lead_id ?? identity.session_id,
+      write_token: parsed.write_token ?? identity.write_token,
+      events: parsed.events ?? [],
+    };
   } catch {
     return null;
   }

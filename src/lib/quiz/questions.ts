@@ -1,13 +1,7 @@
 import type { Answers } from "./types";
 import { isExpansionPath, resolvePath } from "./diagnosis";
 
-export type QuestionType =
-  | "single"
-  | "currency"
-  | "integer"
-  | "number"
-  | "location"
-  | "contact";
+export type QuestionType = "single" | "currency" | "integer" | "number" | "location" | "contact";
 
 export interface Option {
   label: string;
@@ -68,9 +62,10 @@ export const QUESTIONS: Question[] = [
     title: "Que tipo de academia você pretende montar?",
     showIf: (a) => resolvePath(a) === "novo_negocio",
     options: [
-      ...MODELOS.filter((m) => m.value !== "boutique"),
+      { label: "Academia completa", value: "tradicional" },
+      { label: "Studio especializado", value: "studio_musculacao" },
+      { label: "Box de cross training", value: "cross_training" },
       { label: "Academia de condomínio", value: "condominio" },
-      { label: "Academia boutique", value: "boutique" },
       { label: "Ainda não defini", value: "nao_defini" },
       { label: "Outro", value: "outro" },
     ],
@@ -89,37 +84,18 @@ export const QUESTIONS: Question[] = [
     key: "capital_disponivel",
     type: "currency",
     essential: true,
-    title: "Quanto você tem disponível hoje para investir no projeto?",
-    help: "Considere tudo que pode ser efetivamente aplicado na abertura.",
+    title: "Quanto de capital próprio e de sócios está disponível para o projeto?",
+    help: "Considere somente dinheiro efetivamente disponível. Financiamentos serão avaliados separadamente.",
     showIf: (a) => resolvePath(a) === "novo_negocio",
   },
   {
     id: "A04",
-    key: "investimento_equipamentos",
+    key: "investimento_implantacao",
     type: "currency",
-    title: "Quanto você pretende investir em equipamentos?",
+    title: "Quanto estima investir para deixar a academia pronta para inaugurar?",
+    help: "Inclua equipamentos, reforma, documentação, sistemas, mobiliário e comunicação visual.",
     allowUnknown: true,
     unknownLabel: "Ainda não sei",
-    showIf: (a) => resolvePath(a) === "novo_negocio",
-  },
-  {
-    id: "A05",
-    key: "investimento_reforma",
-    type: "currency",
-    title: "Quanto estima gastar com reforma, estrutura e adequação do espaço?",
-    help: "Piso, elétrica, iluminação, pintura, climatização, fachada, vestiários etc.",
-    allowUnknown: true,
-    unknownLabel: "Ainda não sei",
-    showIf: (a) => resolvePath(a) === "novo_negocio",
-  },
-  {
-    id: "A06",
-    key: "custos_pre_operacionais",
-    type: "currency",
-    title: "Quanto estima gastar antes da inauguração, além de equipamentos e reforma?",
-    help: "Documentação, sistema, comunicação visual, marketing inicial, mobiliário, computadores, catraca e outros.",
-    allowUnknown: true,
-    unknownLabel: "Não sei",
     showIf: (a) => resolvePath(a) === "novo_negocio",
   },
   {
@@ -127,7 +103,7 @@ export const QUESTIONS: Question[] = [
     key: "capital_giro",
     type: "currency",
     essential: true,
-    title: "Depois de montar a academia, quanto pretende deixar reservado para sustentar a operação?",
+    title: "Do capital total, quanto ficará reservado para sustentar os primeiros meses?",
     help: "É o dinheiro que segura os primeiros meses até a operação se pagar.",
     showIf: (a) => resolvePath(a) === "novo_negocio",
   },
@@ -172,7 +148,7 @@ export const QUESTIONS: Question[] = [
     key: "alunos_projetados_6m",
     type: "integer",
     essential: true,
-    title: "Quantos alunos você acredita conseguir atingir após 6 meses?",
+    title: "Qual seria uma meta realista de alunos ativos nos primeiros 6 meses?",
     showIf: (a) => resolvePath(a) === "novo_negocio",
   },
   {
@@ -180,7 +156,7 @@ export const QUESTIONS: Question[] = [
     key: "alunos_projetados_12m",
     type: "integer",
     essential: true,
-    title: "E após 12 meses?",
+    title: "E quantos alunos ativos espera ter ao completar 12 meses?",
     showIf: (a) => resolvePath(a) === "novo_negocio",
   },
   {
@@ -197,6 +173,63 @@ export const QUESTIONS: Question[] = [
       { label: "Ainda não defini", value: "nao_defini" },
     ],
   },
+  {
+    id: "A15",
+    key: "base_projecao",
+    type: "single",
+    title: "Em que você está baseando sua previsão de alunos?",
+    showIf: (a) => resolvePath(a) === "novo_negocio" && a["objetivo_principal"] !== "estudando",
+    options: [
+      {
+        label: "Já possuo clientes ou público que pretende migrar comigo",
+        value: "clientes_existentes",
+      },
+      { label: "Já comecei uma pré-venda ou captação", value: "pre_venda" },
+      { label: "Analisei concorrência e demanda da região", value: "pesquisa_regional" },
+      { label: "Tenho experiência anterior operando academia", value: "experiencia_anterior" },
+      { label: "É uma estimativa pessoal", value: "estimativa_pessoal" },
+      { label: "Ainda não sei quantos alunos consigo atingir", value: "nao_sei" },
+    ],
+  },
+  {
+    id: "A16",
+    key: "interessados_validados",
+    type: "integer",
+    title: "Quantas pessoas já demonstraram interesse real em treinar na futura academia?",
+    showIf: (a) => resolvePath(a) === "novo_negocio" && a["objetivo_principal"] !== "estudando",
+  },
+  {
+    id: "A17",
+    key: "pretende_financiar",
+    type: "single",
+    title: "Você pretende financiar parte do projeto?",
+    showIf: (a) => resolvePath(a) === "novo_negocio" && a["objetivo_principal"] !== "estudando",
+    options: [
+      { label: "Sim", value: "sim" },
+      { label: "Não", value: "nao" },
+      { label: "Ainda estou avaliando", value: "avaliando" },
+    ],
+  },
+  {
+    id: "A18",
+    key: "financiamento_planejado",
+    type: "currency",
+    title: "Quanto pretende financiar?",
+    showIf: (a) => a["pretende_financiar"] === "sim",
+  },
+  {
+    id: "A19",
+    key: "status_financiamento",
+    type: "single",
+    title: "Em qual estágio está esse financiamento?",
+    showIf: (a) => a["pretende_financiar"] === "sim",
+    options: [
+      { label: "Crédito aprovado", value: "aprovado" },
+      { label: "Em análise", value: "analise" },
+      { label: "Em negociação", value: "negociacao" },
+      { label: "Ainda não solicitei", value: "nao_solicitado" },
+    ],
+  },
 
   /* ---------------- Caminho B — operação existente ---------------- */
   {
@@ -206,20 +239,6 @@ export const QUESTIONS: Question[] = [
     title: "Qual é o modelo da sua operação?",
     showIf: (a) => resolvePath(a) === "operacao_existente",
     options: [...MODELOS, { label: "Outro", value: "outro" }],
-  },
-  {
-    id: "B02",
-    key: "tempo_operacao",
-    type: "single",
-    title: "Há quanto tempo sua academia funciona?",
-    showIf: (a) => resolvePath(a) === "operacao_existente",
-    options: [
-      { label: "Menos de 6 meses", value: "menos_6m" },
-      { label: "6 a 12 meses", value: "6_12m" },
-      { label: "1 a 2 anos", value: "1_2a" },
-      { label: "2 a 5 anos", value: "2_5a" },
-      { label: "Mais de 5 anos", value: "mais_5a" },
-    ],
   },
   {
     id: "B03",
@@ -251,8 +270,8 @@ export const QUESTIONS: Question[] = [
     key: "custos_mensais",
     type: "currency",
     essential: true,
-    title: "Quanto custa aproximadamente sua operação por mês?",
-    help: "Considere folha, aluguel, energia, sistemas, impostos, manutenção, marketing, contador e demais despesas.",
+    title: "Em um mês normal, quanto sai do caixa para manter a academia funcionando?",
+    help: "Inclua folha, aluguel, impostos, marketing, sistemas, manutenção, contador e pró-labore.",
     showIf: (a) => resolvePath(a) === "operacao_existente",
   },
   {
@@ -269,8 +288,8 @@ export const QUESTIONS: Question[] = [
     id: "B08",
     key: "leads_mensais",
     type: "integer",
-    title: "Quantos novos contatos interessados sua academia recebe aproximadamente por mês?",
-    help: "Considere WhatsApp, Instagram, formulário, telefone etc.",
+    title: "Nos últimos 30 dias, quantas pessoas novas pediram informações?",
+    help: "Considere WhatsApp, Instagram, visitas, formulários e ligações.",
     allowUnknown: true,
     unknownLabel: "Não sei",
     showIf: (a) => resolvePath(a) === "operacao_existente",
@@ -279,14 +298,14 @@ export const QUESTIONS: Question[] = [
     id: "B09",
     key: "novas_matriculas",
     type: "integer",
-    title: "Quantas novas matrículas sua academia faz aproximadamente por mês?",
+    title: "Nos últimos 30 dias, quantas novas matrículas foram realizadas?",
     showIf: (a) => resolvePath(a) === "operacao_existente",
   },
   {
     id: "B10",
     key: "cancelamentos_mensais",
     type: "integer",
-    title: "Quantos alunos cancelam ou deixam a academia em um mês típico?",
+    title: "Nos últimos 30 dias, quantos alunos cancelaram ou deixaram de pagar?",
     showIf: (a) => resolvePath(a) === "operacao_existente",
   },
   {
@@ -300,7 +319,7 @@ export const QUESTIONS: Question[] = [
   },
   {
     id: "B12",
-    key: "nivel_saturacao",
+    key: "pressao_horario_pico",
     type: "single",
     title: "Nos horários de maior movimento, qual situação mais representa sua academia?",
     showIf: (a) => resolvePath(a) === "operacao_existente",
@@ -310,6 +329,32 @@ export const QUESTIONS: Question[] = [
       { label: "Alguns equipamentos ficam disputados", value: "3" },
       { label: "Existem filas frequentes", value: "4" },
       { label: "O espaço já limita claramente o crescimento", value: "5" },
+    ],
+  },
+  {
+    id: "B14",
+    key: "frequencia_manutencao",
+    type: "single",
+    title: "Com que frequência equipamentos importantes ficam indisponíveis por manutenção?",
+    showIf: (a) => resolvePath(a) === "operacao_existente",
+    options: [
+      { label: "Quase nunca", value: "1" },
+      { label: "Algumas vezes no ano", value: "2" },
+      { label: "Algumas vezes no mês", value: "3" },
+      { label: "Frequentemente", value: "4" },
+    ],
+  },
+  {
+    id: "B15",
+    key: "capacidade_extra_20",
+    type: "single",
+    title: "Sua academia conseguiria receber 20% mais alunos sem ampliar a estrutura?",
+    showIf: (a) => resolvePath(a) === "operacao_existente",
+    options: [
+      { label: "Sim, tranquilamente", value: "1" },
+      { label: "Sim, com alguns ajustes", value: "2" },
+      { label: "Dificilmente", value: "3" },
+      { label: "Não", value: "4" },
     ],
   },
   {
@@ -332,6 +377,31 @@ export const QUESTIONS: Question[] = [
     ],
   },
   {
+    id: "S01",
+    key: "possui_local",
+    type: "single",
+    title: "Em relação ao local da futura academia, em que ponto você está?",
+    showIf: (a) => resolvePath(a) === "novo_negocio",
+    options: [
+      { label: "Já tenho um local definido", value: "definido" },
+      { label: "Estou avaliando algumas opções", value: "avaliando" },
+      { label: "Ainda não comecei a procurar", value: "nao_iniciado" },
+    ],
+  },
+  {
+    id: "S02",
+    key: "forma_investimento",
+    type: "single",
+    title: "Como você imagina financiar o projeto?",
+    showIf: (a) => a["objetivo_principal"] === "estudando",
+    options: [
+      { label: "Recursos próprios", value: "proprio" },
+      { label: "Recursos próprios e financiamento", value: "misto" },
+      { label: "Com sócios ou investidores", value: "socios" },
+      { label: "Ainda não defini", value: "nao_defini" },
+    ],
+  },
+  {
     id: "E01",
     key: "investimento_expansao_estimado",
     type: "currency",
@@ -348,6 +418,18 @@ export const QUESTIONS: Question[] = [
     allowUnknown: true,
     unknownLabel: "Não sei",
     showIf: (a) => resolvePath(a) === "operacao_existente" && isExpansionPath(a),
+  },
+  {
+    id: "E03",
+    key: "fonte_capital_expansao",
+    type: "single",
+    title: "A fonte do capital necessário para a expansão já está definida?",
+    showIf: (a) => resolvePath(a) === "operacao_existente" && isExpansionPath(a),
+    options: [
+      { label: "Sim, o capital está garantido", value: "definida" },
+      { label: "Parcialmente", value: "parcial" },
+      { label: "Ainda não", value: "nao_definida" },
+    ],
   },
 
   /* ---------------- Contato ---------------- */

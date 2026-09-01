@@ -3,21 +3,11 @@ import { ArrowRight, Check, Star } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { CityAutocomplete } from "./CityAutocomplete";
 import { cn } from "@/lib/utils";
 import { formatCurrencyInput, parseCurrencyInput } from "@/lib/quiz/format";
 import type { Question } from "@/lib/quiz/questions";
 import type { Answers } from "@/lib/quiz/types";
-
-const UFS = [
-  "AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO",
-];
 
 interface Props {
   question: Question;
@@ -75,7 +65,9 @@ export function QuestionCard({ question, answers, warning, onSubmit }: Props) {
       return;
     }
     const n = Number(raw.replace(",", "."));
-    onSubmit({ [question.key]: Number.isFinite(n) ? (question.type === "integer" ? Math.round(n) : n) : null });
+    onSubmit({
+      [question.key]: Number.isFinite(n) ? (question.type === "integer" ? Math.round(n) : n) : null,
+    });
   }
 
   return (
@@ -94,7 +86,7 @@ export function QuestionCard({ question, answers, warning, onSubmit }: Props) {
 
       {question.type === "single" && (
         <div className="grid gap-3">
-          {question.options?.map((opt) => {
+          {question.options?.map((opt, optionIndex) => {
             const selected = answers[question.key] === opt.value;
             return (
               <button
@@ -102,20 +94,27 @@ export function QuestionCard({ question, answers, warning, onSubmit }: Props) {
                 type="button"
                 onClick={() => onSubmit({ [question.key]: opt.value })}
                 className={cn(
-                  "group flex min-h-16 w-full items-center justify-between gap-3 rounded-2xl border bg-card px-5 py-4 text-left text-base font-medium transition-all active:scale-[0.99]",
+                  "answer-option-enter group flex min-h-16 w-full items-center justify-between gap-3 rounded-2xl border bg-card px-5 py-4 text-left text-base font-medium transition-all active:scale-[0.99]",
                   selected
                     ? "border-primary shadow-glow"
                     : "border-border hover:border-primary/60 hover:bg-secondary",
                 )}
+                style={{ animationDelay: `${optionIndex * 45}ms` }}
               >
                 <span>{opt.label}</span>
                 <span
                   className={cn(
                     "flex size-6 shrink-0 items-center justify-center rounded-full border",
-                    selected ? "border-primary bg-primary text-primary-foreground" : "border-border",
+                    selected
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border",
                   )}
                 >
-                  {selected ? <Check className="size-4" /> : <ArrowRight className="size-3 opacity-40" />}
+                  {selected ? (
+                    <Check className="size-4" />
+                  ) : (
+                    <ArrowRight className="size-3 opacity-40" />
+                  )}
                 </span>
               </button>
             );
@@ -176,30 +175,12 @@ export function QuestionCard({ question, answers, warning, onSubmit }: Props) {
       )}
 
       {question.type === "location" && (
-        <div className="grid gap-3">
-          <Input
-            autoFocus
-            value={draft["cidade"] ?? ""}
-            onChange={(e) => setDraft((d) => ({ ...d, cidade: e.target.value }))}
-            placeholder="Sua cidade"
-            className="h-16 rounded-2xl bg-card text-lg"
-          />
-          <Select
-            value={draft["estado"] ?? ""}
-            onValueChange={(v) => setDraft((d) => ({ ...d, estado: v }))}
-          >
-            <SelectTrigger className="!h-16 rounded-2xl bg-card text-lg">
-              <SelectValue placeholder="Estado" />
-            </SelectTrigger>
-            <SelectContent>
-              {UFS.map((uf) => (
-                <SelectItem key={uf} value={uf}>
-                  {uf}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <CityAutocomplete
+          city={draft["cidade"] ?? ""}
+          uf={draft["estado"] ?? ""}
+          onInput={(value) => setDraft((current) => ({ ...current, cidade: value, estado: "" }))}
+          onSelect={(cidade, estado) => setDraft((current) => ({ ...current, cidade, estado }))}
+        />
       )}
 
       {question.type === "contact" && (

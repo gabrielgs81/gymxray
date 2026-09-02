@@ -1,7 +1,8 @@
 import type { Answers } from "./types";
 import { isExpansionPath, resolvePath } from "./diagnosis";
 
-export type QuestionType = "single" | "currency" | "integer" | "number" | "location" | "contact";
+export type QuestionType =
+  "single" | "currency" | "integer" | "number" | "text" | "location" | "contact";
 
 export interface Option {
   label: string;
@@ -23,12 +24,10 @@ export interface Question {
 }
 
 const MODELOS: Option[] = [
-  { label: "Academia tradicional", value: "tradicional" },
-  { label: "Academia premium", value: "premium" },
-  { label: "Studio de musculação", value: "studio_musculacao" },
-  { label: "Studio funcional", value: "studio_funcional" },
-  { label: "Cross training", value: "cross_training" },
-  { label: "Academia boutique", value: "boutique" },
+  { label: "Academia de bairro", value: "bairro" },
+  { label: "Academia boutique / premium", value: "boutique_premium" },
+  { label: "Estúdio com atendimento personalizado", value: "studio_personalizado" },
+  { label: "Academia de condomínio", value: "condominio" },
 ];
 
 export const QUESTIONS: Question[] = [
@@ -41,9 +40,11 @@ export const QUESTIONS: Question[] = [
     options: [
       { label: "Quero montar minha primeira academia", value: "abrir_primeira" },
       { label: "Já tenho uma academia e quero melhorar os resultados", value: "melhorar_atual" },
-      { label: "Já tenho uma academia e quero ampliar meu espaço", value: "expandir_atual" },
-      { label: "Quero abrir uma segunda unidade", value: "segunda_unidade" },
-      { label: "Estou estudando o mercado e ainda não decidi", value: "estudando" },
+      { label: "Já tenho uma academia e quero abrir uma nova unidade", value: "segunda_unidade" },
+      {
+        label: "Estou estudando o mercado e quero entender se meu projeto é viável",
+        value: "estudando",
+      },
     ],
   },
   {
@@ -51,7 +52,18 @@ export const QUESTIONS: Question[] = [
     key: "cidade",
     type: "location",
     title: "Em qual cidade e estado você está?",
-    help: "Usamos essa informação apenas para personalizar seu relatório.",
+    help: "A cidade será usada para contextualizar o mercado local com dados oficiais.",
+  },
+  {
+    id: "Q03",
+    key: "bairro_endereco",
+    type: "text",
+    title: "Em qual bairro ou região você imagina instalar a academia?",
+    help: "Se já souber o endereço, pode informá-lo. Isso prepara uma análise futura do entorno de 5 km.",
+    allowUnknown: true,
+    unknownLabel: "Ainda não defini a região",
+    showIf: (a) =>
+      resolvePath(a) === "novo_negocio" || a["objetivo_principal"] === "segunda_unidade",
   },
 
   /* ---------------- Caminho A — novo negócio ---------------- */
@@ -61,13 +73,24 @@ export const QUESTIONS: Question[] = [
     type: "single",
     title: "Que tipo de academia você pretende montar?",
     showIf: (a) => resolvePath(a) === "novo_negocio",
+    options: [...MODELOS, { label: "Ainda não defini", value: "nao_defini" }],
+  },
+  {
+    id: "A20",
+    key: "meta_alunos_faixa",
+    type: "single",
+    essential: true,
+    title: "Quantos alunos você pretende atender nessa academia?",
+    help: "Essa meta orienta capacidade, quantidade de equipamentos e repetição de estações.",
+    showIf: (a) => resolvePath(a) === "novo_negocio",
     options: [
-      { label: "Academia completa", value: "tradicional" },
-      { label: "Studio especializado", value: "studio_musculacao" },
-      { label: "Box de cross training", value: "cross_training" },
-      { label: "Academia de condomínio", value: "condominio" },
-      { label: "Ainda não defini", value: "nao_defini" },
-      { label: "Outro", value: "outro" },
+      { label: "Até 150 alunos", value: "ate_150" },
+      { label: "150 a 300 alunos", value: "150_300" },
+      { label: "300 a 500 alunos", value: "300_500" },
+      { label: "500 a 800 alunos", value: "500_800" },
+      { label: "800 a 1.200 alunos", value: "800_1200" },
+      { label: "Acima de 1.200 alunos", value: "acima_1200" },
+      { label: "Ainda não sei", value: "nao_sei" },
     ],
   },
   {
@@ -75,27 +98,42 @@ export const QUESTIONS: Question[] = [
     key: "area_m2",
     type: "number",
     suffix: "m²",
-    title: "Qual será aproximadamente o tamanho do espaço?",
-    help: "Uma estimativa já é suficiente.",
+    title: "Qual será aproximadamente a área útil da academia?",
+    help: "Vamos cruzar a metragem com o modelo e a quantidade de alunos pretendida.",
     showIf: (a) => resolvePath(a) === "novo_negocio",
   },
   {
     id: "A03",
-    key: "capital_disponivel",
+    key: "investimento_total_planejado",
     type: "currency",
     essential: true,
-    title: "Quanto de capital próprio e de sócios está disponível para o projeto?",
-    help: "Considere somente dinheiro efetivamente disponível. Financiamentos serão avaliados separadamente.",
+    title: "Qual é o valor total que você pretende investir no projeto?",
+    help: "Considere equipamentos, adequação do espaço e capital de giro.",
     showIf: (a) => resolvePath(a) === "novo_negocio",
   },
   {
     id: "A04",
-    key: "investimento_implantacao",
+    key: "investimento_equipamentos",
     type: "currency",
-    title: "Quanto estima investir para deixar a academia pronta para inaugurar?",
-    help: "Inclua equipamentos, reforma, documentação, sistemas, mobiliário e comunicação visual.",
-    allowUnknown: true,
-    unknownLabel: "Ainda não sei",
+    title: "Quanto pretende direcionar para equipamentos?",
+    help: "Inclua musculação, cardio e acessórios, mesmo quando parte for parcelada.",
+    showIf: (a) => resolvePath(a) === "novo_negocio",
+  },
+  {
+    id: "A05",
+    key: "investimento_adequacao",
+    type: "currency",
+    title: "Quanto pretende direcionar para adequação do espaço?",
+    help: "Obra, elétrica, iluminação, piso, pintura, fachada, vestiários e recepção.",
+    showIf: (a) => resolvePath(a) === "novo_negocio",
+  },
+  {
+    id: "A06",
+    key: "capital_disponivel",
+    type: "currency",
+    essential: true,
+    title: "Quanto de capital próprio e de sócios está disponível agora?",
+    help: "Considere apenas dinheiro efetivamente disponível. Crédito será analisado separadamente.",
     showIf: (a) => resolvePath(a) === "novo_negocio",
   },
   {
@@ -383,9 +421,10 @@ export const QUESTIONS: Question[] = [
     title: "Em relação ao local da futura academia, em que ponto você está?",
     showIf: (a) => resolvePath(a) === "novo_negocio",
     options: [
-      { label: "Já tenho um local definido", value: "definido" },
-      { label: "Estou avaliando algumas opções", value: "avaliando" },
-      { label: "Ainda não comecei a procurar", value: "nao_iniciado" },
+      { label: "Já tenho um local pronto e definido", value: "pronto_definido" },
+      { label: "Já tenho o local, mas está em construção ou reforma", value: "em_obra" },
+      { label: "Estou avaliando alguns imóveis", value: "avaliando" },
+      { label: "Ainda não comecei a procurar um local", value: "nao_iniciado" },
     ],
   },
   {
@@ -430,6 +469,72 @@ export const QUESTIONS: Question[] = [
       { label: "Parcialmente", value: "parcial" },
       { label: "Ainda não", value: "nao_definida" },
     ],
+  },
+  {
+    id: "E04",
+    key: "modelo_nova_unidade",
+    type: "single",
+    title: "Que tipo de academia você pretende montar na nova unidade?",
+    showIf: (a) => a["objetivo_principal"] === "segunda_unidade",
+    options: [...MODELOS, { label: "Ainda não defini", value: "nao_defini" }],
+  },
+  {
+    id: "E05",
+    key: "estagio_local_nova_unidade",
+    type: "single",
+    title: "Em relação ao local da nova unidade, em que etapa você está?",
+    showIf: (a) => a["objetivo_principal"] === "segunda_unidade",
+    options: [
+      { label: "Já tenho um local pronto e definido", value: "pronto_definido" },
+      { label: "Já tenho o local, mas está em construção ou reforma", value: "em_obra" },
+      { label: "Estou avaliando alguns imóveis", value: "avaliando" },
+      { label: "Ainda não comecei a procurar um local", value: "nao_iniciado" },
+    ],
+  },
+  {
+    id: "E06",
+    key: "area_nova_unidade_m2",
+    type: "number",
+    suffix: "m²",
+    title: "Qual será aproximadamente a área útil da nova unidade?",
+    showIf: (a) => a["objetivo_principal"] === "segunda_unidade",
+  },
+  {
+    id: "E07",
+    key: "meta_alunos_nova_faixa",
+    type: "single",
+    title: "Quantos alunos a nova unidade deverá atender?",
+    showIf: (a) => a["objetivo_principal"] === "segunda_unidade",
+    options: [
+      { label: "Até 150 alunos", value: "ate_150" },
+      { label: "150 a 300 alunos", value: "150_300" },
+      { label: "300 a 500 alunos", value: "300_500" },
+      { label: "500 a 800 alunos", value: "500_800" },
+      { label: "800 a 1.200 alunos", value: "800_1200" },
+      { label: "Acima de 1.200 alunos", value: "acima_1200" },
+      { label: "Ainda não sei", value: "nao_sei" },
+    ],
+  },
+  {
+    id: "E08",
+    key: "investimento_equipamentos_expansao",
+    type: "currency",
+    title: "Quanto será destinado aos equipamentos da nova unidade?",
+    showIf: (a) => a["objetivo_principal"] === "segunda_unidade",
+  },
+  {
+    id: "E09",
+    key: "investimento_adequacao_expansao",
+    type: "currency",
+    title: "Quanto será destinado à adequação do novo espaço?",
+    showIf: (a) => a["objetivo_principal"] === "segunda_unidade",
+  },
+  {
+    id: "E10",
+    key: "capital_giro_expansao",
+    type: "currency",
+    title: "Quanto ficará reservado como capital de giro da nova unidade?",
+    showIf: (a) => a["objetivo_principal"] === "segunda_unidade",
   },
 
   /* ---------------- Contato ---------------- */

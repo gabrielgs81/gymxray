@@ -2,7 +2,7 @@ import type { DiagnosticResult } from "./types";
 import type { QuizState } from "./storage";
 
 const VISITOR_KEY = "raiox_visitor_id";
-const QUIZ_VERSION = "2026-09-score-v1";
+const QUIZ_VERSION = "2026-09-expert-v2";
 
 function uuid() {
   return crypto.randomUUID();

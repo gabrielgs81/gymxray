@@ -7,6 +7,7 @@ import {
   computeMetrics,
   interpolateScore,
 } from "./calculations";
+import { detectAlerts } from "./diagnosis";
 
 describe("motor do Índice Raio-X", () => {
   it("interpola progressivamente entre os pontos da curva", () => {
@@ -72,5 +73,45 @@ describe("motor do Índice Raio-X", () => {
     expect(
       calculateDiagnosticConfidence({ faturamento_mensal: 100_000 }, "operacao_existente"),
     ).toBeLessThan(40);
+  });
+
+  it("cruza investimento, meta de alunos, área e população no novo projeto", () => {
+    const answers = {
+      objetivo_principal: "abrir_primeira",
+      modelo_negocio: "bairro",
+      investimento_total_planejado: 300_000,
+      investimento_equipamentos: 150_000,
+      investimento_adequacao: 100_000,
+      capital_giro: 50_000,
+      meta_alunos_faixa: "500_800",
+      area_m2: 250,
+      populacao_municipal_estimada: 500_000,
+    };
+    const metrics = computeMetrics(answers, "novo_negocio");
+
+    expect(metrics.investimento_total_estimado).toBe(300_000);
+    expect(metrics.total_alocado_investimento).toBe(300_000);
+    expect(metrics.saldo_alocacao_investimento).toBe(0);
+    expect(metrics.meta_alunos_referencia).toBe(650);
+    expect(metrics.densidade_alunos_planejada).toBe(2.6);
+    expect(metrics.participacao_populacao_necessaria).toBeCloseTo(0.0013);
+    expect(detectAlerts(metrics, answers, "novo_negocio")).toContain(
+      "A meta de alunos tende a pressionar a área disponível e exigirá uma seleção muito eficiente de equipamentos.",
+    );
+  });
+
+  it("sinaliza quando a distribuição não fecha com o investimento total", () => {
+    const answers = {
+      investimento_total_planejado: 300_000,
+      investimento_equipamentos: 150_000,
+      investimento_adequacao: 80_000,
+      capital_giro: 40_000,
+    };
+    const metrics = computeMetrics(answers, "novo_negocio");
+
+    expect(metrics.saldo_alocacao_investimento).toBe(30_000);
+    expect(detectAlerts(metrics, answers, "novo_negocio")).toContain(
+      "A distribuição do investimento não corresponde ao capital total planejado.",
+    );
   });
 });

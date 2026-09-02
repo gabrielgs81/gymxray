@@ -13,6 +13,7 @@ import { softWarning } from "@/lib/quiz/questions";
 import { stepAnchorId, visibleQuizSteps } from "@/lib/quiz/steps";
 import { getQuizEngagement, getQuizStage, getStageCount } from "@/lib/quiz/engagement";
 import { buildDiagnostic } from "@/lib/quiz/diagnosis";
+import { fetchMunicipalPopulation } from "@/lib/quiz/market";
 import {
   getReportUrl,
   ingestAnalytics,
@@ -218,6 +219,27 @@ export function QuizFlow() {
     saveState(nextState);
     setState(nextState);
     viewedStep.current = null;
+
+    if (step.id === "Q02" && typeof patch["municipio_ibge"] === "number") {
+      void fetchMunicipalPopulation(patch["municipio_ibge"]).then((market) => {
+        if (!market) return;
+        update((current) => ({
+          ...current,
+          answers: {
+            ...current.answers,
+            populacao_municipal_estimada: market.population,
+            populacao_ano_referencia: market.referenceYear,
+            mercado_fonte_populacao: market.source,
+          },
+        }));
+        void ingestAnalytics(nextState, "market_data_enriched", {
+          municipio_ibge: patch["municipio_ibge"],
+          population: market.population,
+          reference_year: market.referenceYear,
+          source: market.source,
+        });
+      });
+    }
 
     void ingestAnalytics(nextState, "step_completed", {
       step_id: step.id,

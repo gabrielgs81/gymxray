@@ -106,10 +106,32 @@ export function QuestionGroupCard({
     setResolved(initialResolved);
   }, [answers, step]);
 
-  const canSubmit = useMemo(
-    () => step.questions.every((question) => resolved.has(question.key)),
-    [resolved, step.questions],
-  );
+  const canSubmit = useMemo(() => {
+    const complete = step.questions.every((question) => resolved.has(question.key));
+    if (!complete || !step.allocationTotalKey) return complete;
+    const target = answers[step.allocationTotalKey];
+    if (typeof target !== "number") return false;
+    const allocated = step.questions.reduce(
+      (total, question) =>
+        total + (typeof draft[question.key] === "number" ? Number(draft[question.key]) : 0),
+      0,
+    );
+    return allocated === target;
+  }, [answers, draft, resolved, step]);
+
+  const allocation = useMemo(() => {
+    if (!step.allocationTotalKey) return null;
+    const target =
+      typeof answers[step.allocationTotalKey] === "number"
+        ? Number(answers[step.allocationTotalKey])
+        : 0;
+    const allocated = step.questions.reduce(
+      (total, question) =>
+        total + (typeof draft[question.key] === "number" ? Number(draft[question.key]) : 0),
+      0,
+    );
+    return { target, allocated, remaining: target - allocated };
+  }, [answers, draft, step]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -156,6 +178,34 @@ export function QuestionGroupCard({
         })}
       </div>
 
+      {allocation && (
+        <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4">
+          <div className="flex items-center justify-between gap-3 text-sm">
+            <span className="text-muted-foreground">Total distribuído</span>
+            <strong>
+              {brl(allocation.allocated)} de {brl(allocation.target)}
+            </strong>
+          </div>
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-secondary">
+            <span
+              className={`block h-full rounded-full ${allocation.remaining === 0 ? "bg-primary" : allocation.remaining < 0 ? "bg-destructive" : "bg-warning"}`}
+              style={{
+                width: `${Math.min(100, allocation.target > 0 ? (allocation.allocated / allocation.target) * 100 : 0)}%`,
+              }}
+            />
+          </div>
+          <p
+            className={`mt-3 text-xs ${allocation.remaining === 0 ? "text-primary" : "text-warning"}`}
+          >
+            {allocation.remaining === 0
+              ? "Distribuição fechada. Os três valores correspondem ao investimento total."
+              : allocation.remaining > 0
+                ? `Ainda falta distribuir ${brl(allocation.remaining)}.`
+                : `A distribuição ultrapassou o total em ${brl(Math.abs(allocation.remaining))}.`}
+          </p>
+        </div>
+      )}
+
       {warning && (
         <p className="rounded-2xl border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-warning">
           {warning}
@@ -173,7 +223,9 @@ export function QuestionGroupCard({
       </Button>
       {!canSubmit && (
         <p className="-mt-3 text-center text-xs text-muted-foreground">
-          Ajuste cada controle ou marque que ainda não sabe o valor.
+          {allocation
+            ? "Ajuste os valores até a soma corresponder ao investimento total."
+            : "Ajuste cada controle ou marque que ainda não sabe o valor."}
         </p>
       )}
     </div>

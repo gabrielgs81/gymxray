@@ -81,6 +81,8 @@ export function detectAlerts(m: Metrics, answers: Answers, path: Path): string[]
     )
       alerts.push("Expansão planejada sem cobertura integral do capital estimado.");
   } else {
+    if (m.saldo_alocacao_investimento !== null && Math.abs(m.saldo_alocacao_investimento) > 0)
+      alerts.push("A distribuição do investimento não corresponde ao capital total planejado.");
     if (m.cobertura_capital !== null && m.cobertura_capital < 1)
       alerts.push("O capital efetivamente disponível não cobre o investimento estimado.");
     if (m.meses_reserva !== null && m.meses_reserva < 1)
@@ -89,6 +91,14 @@ export function detectAlerts(m: Metrics, answers: Answers, path: Path): string[]
       alerts.push("A projeção ainda não atinge o ponto de equilíbrio em 12 meses.");
     if (answers["base_projecao"] === "estimativa_pessoal")
       alerts.push("A projeção de alunos está baseada apenas em estimativa pessoal.");
+    if (
+      m.densidade_alunos_planejada !== null &&
+      m.score_compatibilidade_espaco !== null &&
+      (m.densidade_alunos_planejada > 2 || m.score_compatibilidade_espaco < 55)
+    )
+      alerts.push(
+        "A meta de alunos tende a pressionar a área disponível e exigirá uma seleção muito eficiente de equipamentos.",
+      );
   }
   return alerts;
 }
@@ -121,6 +131,14 @@ export function detectOpportunities(m: Metrics, answers: Answers, path: Path): s
     if ((num(answers["interessados_validados"]) ?? 0) > 0)
       opportunities.push(
         "A demanda já identificada pode ser convertida em uma estratégia de pré-venda antes da inauguração.",
+      );
+    if (
+      m.densidade_alunos_planejada !== null &&
+      m.densidade_alunos_planejada <= 0.5 &&
+      num(answers["area_m2"]) !== null
+    )
+      opportunities.push(
+        "A área parece ampla para a meta inicial; uma implantação em fases pode preservar capital sem preencher o espaço com máquinas desnecessárias.",
       );
   }
   return opportunities;

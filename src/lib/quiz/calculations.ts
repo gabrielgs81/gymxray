@@ -11,6 +11,29 @@ const sum = (...values: (number | null)[]) =>
     : values.reduce<number>((total, value) => total + (value ?? 0), 0);
 const clamp = (value: number) => Math.max(0, Math.min(100, Math.round(value)));
 
+const studentRangeReference: Record<string, number | null> = {
+  ate_150: 150,
+  "150_300": 225,
+  "300_500": 400,
+  "500_800": 650,
+  "800_1200": 1_000,
+  acima_1200: 1_400,
+  nao_sei: null,
+};
+
+const modelDensityReference: Record<string, number> = {
+  bairro: 2,
+  boutique_premium: 1.2,
+  studio_personalizado: 0.8,
+  condominio: 1,
+  nao_defini: 1.2,
+};
+
+export const resolveStudentTarget = (answers: Answers) =>
+  num(answers["alunos_projetados_12m"]) ??
+  studentRangeReference[String(answers["meta_alunos_faixa"])] ??
+  null;
+
 export function interpolateScore(value: number, points: readonly ScorePoint[]): number {
   const ordered = [...points].sort((a, b) => a.value - b.value);
   if (value <= ordered[0]!.value) return ordered[0]!.score;
@@ -51,6 +74,11 @@ export function computeMetrics(answers: Answers, path: Path): Metrics {
   const a = (key: string) => num(answers[key]);
   const base: Metrics = {
     investimento_estrutura: null,
+    investimento_equipamentos: null,
+    investimento_adequacao: null,
+    investimento_total_planejado: null,
+    total_alocado_investimento: null,
+    saldo_alocacao_investimento: null,
     investimento_total_estimado: null,
     custo_operacional_mensal: null,
     ponto_equilibrio_alunos: null,
@@ -65,6 +93,11 @@ export function computeMetrics(answers: Answers, path: Path): Metrics {
     meses_reserva: null,
     gap_investimento: null,
     cobertura_capital: null,
+    meta_alunos_referencia: null,
+    densidade_alunos_planejada: null,
+    score_compatibilidade_espaco: null,
+    populacao_municipal_estimada: a("populacao_municipal_estimada"),
+    participacao_populacao_necessaria: null,
     ticket_medio: null,
     lucro_operacional_estimado: null,
     margem_operacional: null,
@@ -86,8 +119,26 @@ export function computeMetrics(answers: Answers, path: Path): Metrics {
     financiamento_aprovado: null,
   };
   if (path === "novo_negocio") {
-    base.investimento_estrutura = a("investimento_implantacao");
-    base.investimento_total_estimado = sum(base.investimento_estrutura, a("capital_giro"));
+    base.investimento_equipamentos = a("investimento_equipamentos");
+    base.investimento_adequacao = a("investimento_adequacao");
+    base.investimento_estrutura =
+      sum(base.investimento_equipamentos, base.investimento_adequacao) ??
+      a("investimento_implantacao");
+    base.investimento_total_planejado = a("investimento_total_planejado");
+    base.total_alocado_investimento = sum(
+      base.investimento_equipamentos,
+      base.investimento_adequacao,
+      a("capital_giro"),
+    );
+    base.investimento_total_estimado =
+      base.investimento_total_planejado ??
+      (a("investimento_implantacao") !== null
+        ? sum(a("investimento_implantacao"), a("capital_giro"))
+        : base.total_alocado_investimento);
+    base.saldo_alocacao_investimento =
+      base.investimento_total_planejado !== null && base.total_alocado_investimento !== null
+        ? base.investimento_total_planejado - base.total_alocado_investimento
+        : null;
     base.custo_operacional_mensal = sum(
       a("aluguel_mensal"),
       a("folha_mensal"),
@@ -101,9 +152,14 @@ export function computeMetrics(answers: Answers, path: Path): Metrics {
       a("ticket_planejado") !== null && a("alunos_projetados_6m") !== null
         ? a("ticket_planejado")! * a("alunos_projetados_6m")!
         : null;
+    base.meta_alunos_referencia = resolveStudentTarget(answers);
+    base.participacao_populacao_necessaria = div(
+      base.meta_alunos_referencia,
+      base.populacao_municipal_estimada,
+    );
     base.receita_12m =
-      a("ticket_planejado") !== null && a("alunos_projetados_12m") !== null
-        ? a("ticket_planejado")! * a("alunos_projetados_12m")!
+      a("ticket_planejado") !== null && base.meta_alunos_referencia !== null
+        ? a("ticket_planejado")! * base.meta_alunos_referencia
         : null;
     base.resultado_6m =
       base.receita_6m !== null && base.custo_operacional_mensal !== null
@@ -116,7 +172,7 @@ export function computeMetrics(answers: Answers, path: Path): Metrics {
     base.margem_6m = div(base.resultado_6m, base.receita_6m);
     base.margem_12m = div(base.resultado_12m, base.receita_12m);
     base.cobertura_break_even_6m = div(a("alunos_projetados_6m"), base.ponto_equilibrio_alunos);
-    base.cobertura_break_even_12m = div(a("alunos_projetados_12m"), base.ponto_equilibrio_alunos);
+    base.cobertura_break_even_12m = div(base.meta_alunos_referencia, base.ponto_equilibrio_alunos);
     base.meses_reserva = calculateRunway(a("capital_giro"), base.custo_operacional_mensal);
     base.financiamento_aprovado =
       answers["status_financiamento"] === "aprovado" ? a("financiamento_planejado") : 0;
@@ -127,7 +183,15 @@ export function computeMetrics(answers: Answers, path: Path): Metrics {
         : null;
     base.cobertura_capital = div(base.capital_efetivo_disponivel, base.investimento_total_estimado);
     base.receita_por_m2 = div(base.receita_12m, a("area_m2"));
-    base.alunos_por_m2 = div(a("alunos_projetados_12m"), a("area_m2"));
+    base.alunos_por_m2 = div(base.meta_alunos_referencia, a("area_m2"));
+    base.densidade_alunos_planejada = base.alunos_por_m2;
+    if (base.densidade_alunos_planejada !== null) {
+      const reference = modelDensityReference[String(answers["modelo_negocio"])] ?? 1.2;
+      const ratio = base.densidade_alunos_planejada / reference;
+      base.score_compatibilidade_espaco = clamp(
+        ratio <= 1 ? 100 - Math.abs(0.7 - ratio) * 25 : 100 - (ratio - 1) * 70,
+      );
+    }
     return base;
   }
   const revenue = a("faturamento_mensal"),
@@ -330,9 +394,10 @@ export function calculateNewGymScores(m: Metrics, answers: Answers) {
   );
   const maturityChecks = [
     answers["modelo_negocio"] !== "nao_defini",
-    answers["possui_local"] === "definido",
+    ["pronto_definido", "em_obra"].includes(String(answers["possui_local"])),
     num(answers["area_m2"])! > 0,
-    num(answers["investimento_implantacao"]) !== null,
+    m.investimento_total_estimado !== null,
+    m.saldo_alocacao_investimento === null || m.saldo_alocacao_investimento === 0,
     m.custo_operacional_mensal !== null,
     answers["prazo_abertura"] !== "nao_defini",
     answers["pretende_financiar"] !== "avaliando",
@@ -348,6 +413,8 @@ export function calculateNewGymScores(m: Metrics, answers: Answers) {
     economics * w.operatingEconomics +
     demand * w.demandEvidence +
     maturity * w.projectMaturity;
+  if (m.score_compatibilidade_espaco !== null)
+    viability = viability * 0.9 + m.score_compatibilidade_espaco * 0.1;
   const rules = diagnosticConfig.hardRules.newGym;
   if (
     m.cobertura_capital !== null &&
@@ -403,7 +470,9 @@ export function calculateDiagnosticConfidence(answers: Answers, path: Path): num
   };
   const fresh = {
     capital_disponivel: 3,
-    investimento_implantacao: 3,
+    investimento_total_planejado: 3,
+    investimento_equipamentos: 2,
+    investimento_adequacao: 2,
     capital_giro: 3,
     aluguel_mensal: 3,
     folha_mensal: 3,
@@ -413,6 +482,7 @@ export function calculateDiagnosticConfidence(answers: Answers, path: Path): num
     alunos_projetados_12m: 3,
     base_projecao: 2,
     interessados_validados: 2,
+    meta_alunos_faixa: 2,
     area_m2: 1,
     possui_local: 2,
     prazo_abertura: 1,
@@ -448,12 +518,15 @@ export function calculateGrowthScore() {
 }
 export function calculatePreparationScore(answers: Answers) {
   let score = 0;
-  if (answers["modelo_negocio"] && answers["modelo_negocio"] !== "nao_defini") score += 20;
+  if (answers["modelo_negocio"] && answers["modelo_negocio"] !== "nao_defini") score += 15;
   if ((num(answers["area_m2"]) ?? 0) > 0) score += 15;
-  if ((num(answers["capital_disponivel"]) ?? 0) > 0) score += 25;
-  if (answers["possui_local"] === "definido") score += 15;
-  else if (answers["possui_local"] === "avaliando") score += 8;
-  if (answers["forma_investimento"] && answers["forma_investimento"] !== "nao_defini") score += 10;
-  if (answers["prazo_abertura"] && answers["prazo_abertura"] !== "nao_defini") score += 15;
+  if (answers["meta_alunos_faixa"] && answers["meta_alunos_faixa"] !== "nao_sei") score += 15;
+  if ((num(answers["investimento_total_planejado"]) ?? 0) > 0) score += 20;
+  if ((num(answers["capital_disponivel"]) ?? 0) > 0) score += 15;
+  if (answers["possui_local"] === "pronto_definido") score += 10;
+  else if (answers["possui_local"] === "em_obra") score += 8;
+  else if (answers["possui_local"] === "avaliando") score += 5;
+  if (answers["forma_investimento"] && answers["forma_investimento"] !== "nao_defini") score += 5;
+  if (answers["prazo_abertura"] && answers["prazo_abertura"] !== "nao_defini") score += 5;
   return clamp(score);
 }

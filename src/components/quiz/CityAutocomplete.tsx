@@ -21,7 +21,7 @@ export function CityAutocomplete({
   city: string;
   uf: string;
   onInput: (value: string) => void;
-  onSelect: (city: string, uf: string) => void;
+  onSelect: (city: string, uf: string, ibgeId: number) => void;
 }) {
   const [focused, setFocused] = useState(false);
   const query = normalize(city.trim());
@@ -68,7 +68,7 @@ export function CityAutocomplete({
                   className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors hover:bg-secondary"
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => {
-                    onSelect(item.name, item.uf);
+                    onSelect(item.name, item.uf, item.id);
                     setFocused(false);
                   }}
                 >

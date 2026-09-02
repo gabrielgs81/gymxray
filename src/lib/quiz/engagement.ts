@@ -41,7 +41,9 @@ export function getQuizStage(questionId: string, answers: Answers): QuizStage {
   }
 
   if (path === "novo_negocio") {
-    if (["A01", "A02", "A03", "A04", "A07", "S01", "S02"].includes(questionId)) {
+    if (
+      ["A01", "A02", "A03", "A04", "A05", "A06", "A07", "A20", "S01", "S02"].includes(questionId)
+    ) {
       return {
         id: "investment",
         number: 2,
@@ -144,11 +146,12 @@ export function getQuizEngagement(
                 };
 
   if (path === "novo_negocio") {
-    if (questionId === "A04" && hasNumber(answers, "capital_disponivel")) {
+    if (questionId === "A04" && hasNumber(answers, "investimento_total_planejado")) {
       base.insight = {
-        label: "Capital inicial mapeado",
-        value: brl(answers["capital_disponivel"] as number),
-        detail: "Agora vamos comparar esse valor com a estrutura planejada.",
+        label: "Investimento total mapeado",
+        value: brl(answers["investimento_total_planejado"] as number),
+        detail:
+          "Agora vamos distribuir esse valor entre equipamentos, adequação e capital de giro.",
       };
     } else if (questionId === "A08" && metrics.investimento_total_estimado !== null) {
       base.insight = {

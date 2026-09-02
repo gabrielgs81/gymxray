@@ -27,6 +27,7 @@ export function QuestionCard({ question, answers, warning, onSubmit }: Props) {
     } else if (question.type === "location") {
       seed["cidade"] = (answers["cidade"] as string) ?? "";
       seed["estado"] = (answers["estado"] as string) ?? "";
+      seed["municipio_ibge"] = String(answers["municipio_ibge"] ?? "");
     } else if (question.type === "contact") {
       seed["nome"] = (answers["nome"] as string) ?? "";
       seed["telefone"] = (answers["telefone"] as string) ?? "";
@@ -48,7 +49,11 @@ export function QuestionCard({ question, answers, warning, onSubmit }: Props) {
 
   function submitValue() {
     if (question.type === "location") {
-      onSubmit({ cidade: draft["cidade"]!.trim(), estado: draft["estado"]! });
+      onSubmit({
+        cidade: draft["cidade"]!.trim(),
+        estado: draft["estado"]!,
+        municipio_ibge: Number(draft["municipio_ibge"]) || null,
+      });
       return;
     }
     if (question.type === "contact") {
@@ -62,6 +67,10 @@ export function QuestionCard({ question, answers, warning, onSubmit }: Props) {
     const raw = draft[question.key] ?? "";
     if (question.type === "currency") {
       onSubmit({ [question.key]: parseCurrencyInput(raw) });
+      return;
+    }
+    if (question.type === "text") {
+      onSubmit({ [question.key]: raw.trim() });
       return;
     }
     const n = Number(raw.replace(",", "."));
@@ -174,12 +183,39 @@ export function QuestionCard({ question, answers, warning, onSubmit }: Props) {
         </div>
       )}
 
+      {question.type === "text" && (
+        <Input
+          autoFocus
+          value={draft[question.key] ?? ""}
+          onChange={(e) => setDraft((current) => ({ ...current, [question.key]: e.target.value }))}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && canSubmit) submitValue();
+          }}
+          placeholder="Bairro, região ou endereço aproximado"
+          className="h-16 rounded-2xl bg-card px-4 text-lg"
+        />
+      )}
+
       {question.type === "location" && (
         <CityAutocomplete
           city={draft["cidade"] ?? ""}
           uf={draft["estado"] ?? ""}
-          onInput={(value) => setDraft((current) => ({ ...current, cidade: value, estado: "" }))}
-          onSelect={(cidade, estado) => setDraft((current) => ({ ...current, cidade, estado }))}
+          onInput={(value) =>
+            setDraft((current) => ({
+              ...current,
+              cidade: value,
+              estado: "",
+              municipio_ibge: "",
+            }))
+          }
+          onSelect={(cidade, estado, municipioIbge) =>
+            setDraft((current) => ({
+              ...current,
+              cidade,
+              estado,
+              municipio_ibge: String(municipioIbge),
+            }))
+          }
         />
       )}
 

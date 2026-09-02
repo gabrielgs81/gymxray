@@ -25,6 +25,11 @@ export type Answers = Record<string, string | number | null>;
 export interface Metrics {
   // novo negócio
   investimento_estrutura: number | null;
+  investimento_equipamentos: number | null;
+  investimento_adequacao: number | null;
+  investimento_total_planejado: number | null;
+  total_alocado_investimento: number | null;
+  saldo_alocacao_investimento: number | null;
   investimento_total_estimado: number | null;
   custo_operacional_mensal: number | null;
   ponto_equilibrio_alunos: number | null;
@@ -39,6 +44,11 @@ export interface Metrics {
   meses_reserva: number | null;
   gap_investimento: number | null;
   cobertura_capital: number | null;
+  meta_alunos_referencia: number | null;
+  densidade_alunos_planejada: number | null;
+  score_compatibilidade_espaco: number | null;
+  populacao_municipal_estimada: number | null;
+  participacao_populacao_necessaria: number | null;
   // existente
   ticket_medio: number | null;
   lucro_operacional_estimado: number | null;

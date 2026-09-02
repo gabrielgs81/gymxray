@@ -18,6 +18,7 @@ import {
   getReportUrl,
   ingestAnalytics,
   persistDiagnostic,
+  startMarketResearch,
   startAnalyticsSession,
 } from "@/lib/quiz/analytics";
 import {
@@ -241,7 +242,7 @@ export function QuizFlow() {
       });
     }
 
-    void ingestAnalytics(nextState, "step_completed", {
+    const analyticsRequest = ingestAnalytics(nextState, "step_completed", {
       step_id: step.id,
       step_index: index,
       current_step: completed ? step.id : nextSteps[nextIndex]?.id,
@@ -253,6 +254,15 @@ export function QuizFlow() {
       lead,
       status: completed ? "concluido" : "em_andamento",
     });
+
+    const objective = answers["objetivo_principal"];
+    const shouldResearchMarket =
+      (step.id === "Q02" && objective === "melhorar_atual") ||
+      (step.id === "A01" && (objective === "abrir_primeira" || objective === "estudando")) ||
+      (step.id === "E04" && objective === "segunda_unidade");
+    if (shouldResearchMarket) {
+      void analyticsRequest.then(() => startMarketResearch(nextState)).catch(() => null);
+    }
 
     trackEvent("question_answered", {
       question_id: step.id,

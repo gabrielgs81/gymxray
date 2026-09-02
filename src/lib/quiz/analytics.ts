@@ -118,6 +118,26 @@ export function persistDiagnostic(state: QuizState, result: DiagnosticResult) {
   });
 }
 
+export async function startMarketResearch(state: QuizState) {
+  const connection = config();
+  if (!connection) return null;
+  const response = await fetch(`${connection.url}/functions/v1/xray-market-research`, {
+    method: "POST",
+    headers: {
+      apikey: connection.key,
+      Authorization: `Bearer ${connection.key}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      action: "start",
+      session_id: state.session_id,
+      write_token: state.write_token,
+    }),
+  });
+  if (!response.ok) throw new Error(`X-Ray market research: ${response.status}`);
+  return response.json() as Promise<unknown>;
+}
+
 export async function getReportUrl(state: QuizState) {
   const slug = await rpc("xray_get_report_slug", {
     p_session_id: state.session_id,

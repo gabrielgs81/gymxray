@@ -2,6 +2,7 @@ import { classify, classifyConfidence, classifyExpansion, diagnosticConfig } fro
 import {
   calculateCommercialScore,
   calculateDiagnosticConfidence,
+  calculateExploratoryViability,
   calculateExpansionReadiness,
   calculateFinancialScore,
   calculateManagementVisibility,
@@ -155,9 +156,10 @@ export function buildDiagnostic(answers: Answers, lead: Lead): DiagnosticResult 
     path === "operacao_existente" ? calculateManagementVisibility(answers) : 100;
   let scores: Scores;
   if (exploratory) {
+    const viability = calculateExploratoryViability(metrics, answers);
     scores = {
-      score_geral: confidence,
-      score_viabilidade: confidence,
+      score_geral: viability,
+      score_viabilidade: viability,
       score_financeiro: null,
       score_comercial: null,
       score_retencao: null,
@@ -208,19 +210,17 @@ export function buildDiagnostic(answers: Answers, lead: Lead): DiagnosticResult 
   }
   const diagnosis: Diagnosis = {
     classificacao: exploratory
-      ? "planejamento em construção"
+      ? classify(scores.score_geral, true)
       : classify(scores.score_geral, path === "novo_negocio"),
     principal_gargalo: exploratory
-      ? "Definição financeira e operacional do projeto"
+      ? (metrics.cobertura_break_even_12m ?? 0) < 1
+        ? "Meta de alunos abaixo do ponto de equilíbrio estimado"
+        : "Validação das premissas financeiras do projeto"
       : path === "novo_negocio"
         ? "Estruturação do projeto"
         : detectMainBottleneck(scores, metrics, answers),
-    alertas: exploratory
-      ? ["Ainda faltam dados para calcular a viabilidade financeira."]
-      : detectAlerts(metrics, answers, path),
-    oportunidades: exploratory
-      ? ["Transformar o capital disponível em um orçamento detalhado é o próximo passo."]
-      : detectOpportunities(metrics, answers, path),
+    alertas: detectAlerts(metrics, answers, path),
+    oportunidades: detectOpportunities(metrics, answers, path),
     classificacao_expansao:
       scores.prontidao_expansao === null || scores.prontidao_expansao === undefined
         ? null

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { diagnosticConfig } from "./config";
 import {
   calculateDiagnosticConfidence,
+  calculateExploratoryViability,
   calculateExpansionReadiness,
   calculateNewGymScores,
   computeMetrics,
@@ -113,5 +114,64 @@ describe("motor do Índice Raio-X", () => {
     expect(detectAlerts(metrics, answers, "novo_negocio")).toContain(
       "A distribuição do investimento não corresponde ao capital total planejado.",
     );
+  });
+
+  it("estima custos, break-even e payback para a trilha de viabilidade", () => {
+    const metrics = computeMetrics(
+      {
+        objetivo_principal: "estudando",
+        modelo_negocio: "bairro",
+        meta_alunos_faixa: "300_500",
+        area_m2: 400,
+        investimento_total_planejado: 300_000,
+        capital_disponivel: 300_000,
+        populacao_municipal_estimada: 500_000,
+      },
+      "novo_negocio",
+    );
+
+    expect(metrics.custo_operacional_fonte).toBe("estimado");
+    expect(metrics.aluguel_mensal_referencia).toBe(12_000);
+    expect(metrics.folha_mensal_referencia).toBe(17_000);
+    expect(metrics.outros_custos_mensais_referencia).toBe(5_000);
+    expect(metrics.custo_operacional_mensal).toBe(34_000);
+    expect(metrics.ticket_referencia).toBe(129);
+    expect(metrics.ponto_equilibrio_alunos).toBeCloseTo(263.57, 1);
+    expect(metrics.prazo_break_even_meses).toBe(8);
+    expect(metrics.payback_meses_estimado).not.toBeNull();
+    expect(
+      calculateExploratoryViability(metrics, {
+        objetivo_principal: "estudando",
+        modelo_negocio: "bairro",
+        meta_alunos_faixa: "300_500",
+        area_m2: 400,
+        investimento_total_planejado: 300_000,
+        capital_disponivel: 300_000,
+      }),
+    ).toBeGreaterThan(40);
+    expect(metrics.premissas_estimadas).toEqual([
+      "aluguel",
+      "equipe e encargos",
+      "demais custos operacionais",
+      "ticket médio",
+    ]);
+  });
+
+  it("preserva custos informados e estima somente os campos ausentes", () => {
+    const metrics = computeMetrics(
+      {
+        modelo_negocio: "studio_personalizado",
+        area_m2: 150,
+        aluguel_mensal: 7_500,
+        ticket_planejado: 450,
+      },
+      "novo_negocio",
+    );
+
+    expect(metrics.custo_operacional_fonte).toBe("hibrido");
+    expect(metrics.aluguel_mensal_referencia).toBe(7_500);
+    expect(metrics.ticket_referencia).toBe(450);
+    expect(metrics.ticket_fonte).toBe("informado");
+    expect(metrics.premissas_estimadas).not.toContain("aluguel");
   });
 });

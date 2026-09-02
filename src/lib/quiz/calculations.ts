@@ -29,6 +29,58 @@ const modelDensityReference: Record<string, number> = {
   nao_defini: 1.2,
 };
 
+type OperatingBenchmark = (typeof diagnosticConfig.newGymBenchmarks.models)["bairro"];
+
+const roundHundred = (value: number) => Math.round(value / 100) * 100;
+
+function cityRentFactor(population: number | null) {
+  if (population === null) return 1;
+  if (population < 100_000) return 0.8;
+  if (population < 300_000) return 0.9;
+  if (population < 800_000) return 1;
+  if (population < 2_000_000) return 1.15;
+  return 1.3;
+}
+
+function estimateOperatingInputs(answers: Answers) {
+  const area = num(answers["area_m2"]);
+  if (area === null || area <= 0) return null;
+  const models = diagnosticConfig.newGymBenchmarks.models as Record<string, OperatingBenchmark>;
+  const benchmark = models[String(answers["modelo_negocio"])] ?? models["nao_defini"]!;
+  const rentFactor = cityRentFactor(num(answers["populacao_municipal_estimada"]));
+  return {
+    rent: roundHundred(benchmark.rentPerM2 * area * rentFactor),
+    payroll: roundHundred(benchmark.payrollBase + benchmark.payrollPerM2 * area),
+    other: roundHundred(benchmark.otherBase + benchmark.otherPerM2 * area),
+    ticket: benchmark.ticket,
+  };
+}
+
+function calculatePaybackMonths(
+  investment: number | null,
+  monthlyCost: number | null,
+  ticket: number | null,
+  targetStudents: number | null,
+) {
+  if (
+    investment === null ||
+    investment <= 0 ||
+    monthlyCost === null ||
+    ticket === null ||
+    targetStudents === null ||
+    targetStudents * ticket <= monthlyCost
+  )
+    return null;
+  const { rampMonths, maxPaybackMonths } = diagnosticConfig.newGymBenchmarks;
+  let accumulated = -investment;
+  for (let month = 1; month <= maxPaybackMonths; month += 1) {
+    const students = targetStudents * Math.min(1, month / rampMonths);
+    accumulated += students * ticket - monthlyCost;
+    if (accumulated >= 0) return month;
+  }
+  return null;
+}
+
 export const resolveStudentTarget = (answers: Answers) =>
   num(answers["alunos_projetados_12m"]) ??
   studentRangeReference[String(answers["meta_alunos_faixa"])] ??
@@ -81,7 +133,20 @@ export function computeMetrics(answers: Answers, path: Path): Metrics {
     saldo_alocacao_investimento: null,
     investimento_total_estimado: null,
     custo_operacional_mensal: null,
+    aluguel_mensal_referencia: null,
+    folha_mensal_referencia: null,
+    outros_custos_mensais_referencia: null,
+    custo_operacional_minimo: null,
+    custo_operacional_maximo: null,
+    custo_operacional_fonte: null,
+    ticket_referencia: null,
+    ticket_fonte: null,
     ponto_equilibrio_alunos: null,
+    prazo_break_even_meses: null,
+    payback_meses_estimado: null,
+    resultado_mensal_estabilizado: null,
+    margem_estabilizada: null,
+    premissas_estimadas: [],
     receita_6m: null,
     receita_12m: null,
     resultado_6m: null,
@@ -119,6 +184,7 @@ export function computeMetrics(answers: Answers, path: Path): Metrics {
     financiamento_aprovado: null,
   };
   if (path === "novo_negocio") {
+    const operatingEstimate = estimateOperatingInputs(answers);
     base.investimento_equipamentos = a("investimento_equipamentos");
     base.investimento_adequacao = a("investimento_adequacao");
     base.investimento_estrutura =
@@ -139,18 +205,58 @@ export function computeMetrics(answers: Answers, path: Path): Metrics {
       base.investimento_total_planejado !== null && base.total_alocado_investimento !== null
         ? base.investimento_total_planejado - base.total_alocado_investimento
         : null;
-    base.custo_operacional_mensal = sum(
+    const informedOperatingValues = [
       a("aluguel_mensal"),
       a("folha_mensal"),
       a("outros_custos_mensais"),
+    ];
+    base.aluguel_mensal_referencia = a("aluguel_mensal") ?? operatingEstimate?.rent ?? null;
+    base.folha_mensal_referencia = a("folha_mensal") ?? operatingEstimate?.payroll ?? null;
+    base.outros_custos_mensais_referencia =
+      a("outros_custos_mensais") ?? operatingEstimate?.other ?? null;
+    base.custo_operacional_mensal = sum(
+      base.aluguel_mensal_referencia,
+      base.folha_mensal_referencia,
+      base.outros_custos_mensais_referencia,
     );
+    const informedCount = informedOperatingValues.filter((value) => value !== null).length;
+    base.custo_operacional_fonte =
+      base.custo_operacional_mensal === null
+        ? null
+        : informedCount === 3
+          ? "informado"
+          : informedCount > 0
+            ? "hibrido"
+            : "estimado";
+    base.premissas_estimadas = [
+      ...(a("aluguel_mensal") === null ? ["aluguel"] : []),
+      ...(a("folha_mensal") === null ? ["equipe e encargos"] : []),
+      ...(a("outros_custos_mensais") === null ? ["demais custos operacionais"] : []),
+      ...(a("ticket_planejado") === null ? ["ticket médio"] : []),
+    ];
+    if (base.custo_operacional_mensal !== null) {
+      const estimatedShare = (3 - informedCount) / 3;
+      const lowerFactor =
+        1 - (1 - diagnosticConfig.newGymBenchmarks.costRange.lower) * estimatedShare;
+      const upperFactor =
+        1 + (diagnosticConfig.newGymBenchmarks.costRange.upper - 1) * estimatedShare;
+      base.custo_operacional_minimo = roundHundred(base.custo_operacional_mensal * lowerFactor);
+      base.custo_operacional_maximo = roundHundred(base.custo_operacional_mensal * upperFactor);
+    }
+    base.ticket_referencia = a("ticket_planejado") ?? operatingEstimate?.ticket ?? null;
+    base.ticket_fonte =
+      base.ticket_referencia === null
+        ? null
+        : a("ticket_planejado") === null
+          ? "estimado"
+          : "informado";
     base.ponto_equilibrio_alunos = calculateBreakEven(
       base.custo_operacional_mensal,
-      a("ticket_planejado"),
+      base.ticket_referencia,
     );
     base.receita_6m =
-      a("ticket_planejado") !== null && a("alunos_projetados_6m") !== null
-        ? a("ticket_planejado")! * a("alunos_projetados_6m")!
+      base.ticket_referencia !== null && a("alunos_projetados_6m") !== null
+        ? base.ticket_referencia * a("alunos_projetados_6m")!
         : null;
     base.meta_alunos_referencia = resolveStudentTarget(answers);
     base.participacao_populacao_necessaria = div(
@@ -158,8 +264,8 @@ export function computeMetrics(answers: Answers, path: Path): Metrics {
       base.populacao_municipal_estimada,
     );
     base.receita_12m =
-      a("ticket_planejado") !== null && base.meta_alunos_referencia !== null
-        ? a("ticket_planejado")! * base.meta_alunos_referencia
+      base.ticket_referencia !== null && base.meta_alunos_referencia !== null
+        ? base.ticket_referencia * base.meta_alunos_referencia
         : null;
     base.resultado_6m =
       base.receita_6m !== null && base.custo_operacional_mensal !== null
@@ -173,6 +279,26 @@ export function computeMetrics(answers: Answers, path: Path): Metrics {
     base.margem_12m = div(base.resultado_12m, base.receita_12m);
     base.cobertura_break_even_6m = div(a("alunos_projetados_6m"), base.ponto_equilibrio_alunos);
     base.cobertura_break_even_12m = div(base.meta_alunos_referencia, base.ponto_equilibrio_alunos);
+    base.resultado_mensal_estabilizado = base.resultado_12m;
+    base.margem_estabilizada = base.margem_12m;
+    base.prazo_break_even_meses =
+      base.ponto_equilibrio_alunos !== null &&
+      base.meta_alunos_referencia !== null &&
+      base.meta_alunos_referencia >= base.ponto_equilibrio_alunos
+        ? Math.max(
+            1,
+            Math.ceil(
+              (base.ponto_equilibrio_alunos / base.meta_alunos_referencia) *
+                diagnosticConfig.newGymBenchmarks.rampMonths,
+            ),
+          )
+        : null;
+    base.payback_meses_estimado = calculatePaybackMonths(
+      base.investimento_total_estimado,
+      base.custo_operacional_mensal,
+      base.ticket_referencia,
+      base.meta_alunos_referencia,
+    );
     base.meses_reserva = calculateRunway(a("capital_giro"), base.custo_operacional_mensal);
     base.financiamento_aprovado =
       answers["status_financiamento"] === "aprovado" ? a("financiamento_planejado") : 0;
@@ -512,6 +638,30 @@ export function calculateDiagnosticConfidence(answers: Answers, path: Path): num
 
 export function calculateViabilityScore(m: Metrics, answers: Answers) {
   return calculateNewGymScores(m, answers).viability;
+}
+
+export function calculateExploratoryViability(m: Metrics, answers: Answers) {
+  const preparation = calculatePreparationScore(answers);
+  const capital =
+    m.cobertura_capital === null
+      ? 0
+      : interpolateScore(m.cobertura_capital, diagnosticConfig.curves.capitalCoverage);
+  const coverage =
+    m.cobertura_break_even_12m === null
+      ? 0
+      : interpolateScore(m.cobertura_break_even_12m, diagnosticConfig.curves.breakEvenCoverage);
+  const margin =
+    m.margem_estabilizada === null
+      ? 0
+      : interpolateScore(m.margem_estabilizada, diagnosticConfig.curves.operatingMargin);
+  const economics = coverage * 0.65 + margin * 0.35;
+  const space = m.score_compatibilidade_espaco ?? 50;
+  let viability = preparation * 0.25 + capital * 0.2 + economics * 0.4 + space * 0.15;
+  if (m.cobertura_break_even_12m !== null && m.cobertura_break_even_12m < 1)
+    viability = Math.min(viability, 49);
+  if (m.cobertura_capital !== null && m.cobertura_capital < 0.5)
+    viability = Math.min(viability, 55);
+  return clamp(viability);
 }
 export function calculateGrowthScore() {
   return null;

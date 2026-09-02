@@ -177,7 +177,9 @@ REGRAS DE QUALIDADE
 - Classifique o formato da academia e o quanto ela concorre com o projeto informado.
 - Porte, área e equipamentos podem ser estimados somente quando houver evidência pública. Marque claramente como estimativa e explique a evidência.
 - Nunca invente área, quantidade, marca ou modelo de equipamentos. Para equipment_profile, use categorias observáveis ou declaradas, como musculação, peso livre, cardio, funcional, aulas coletivas e treinamento personalizado.
+- Só inclua uma categoria de equipamento quando ela estiver explicitamente declarada ou diretamente observável na fonte. Não deduza cardio a partir de musculação, levantamento de peso, tamanho ou posicionamento da academia.
 - Toda academia deve ter pelo menos uma URL de fonte. Remova duplicatas e unidades fora da região analisada.
+- Quando duas marcas aparecerem no mesmo endereço, investigue se houve mudança de nome, encerramento ou duplicidade de diretório. Conte separadamente apenas se houver evidência atual de operações independentes.
 - A contagem significa "academias identificadas na pesquisa", não o total censitário da região.
 - A conclusão de concorrência deve considerar o modelo, a escala e o público do projeto do cliente. Quando faltarem dados do projeto, use "incerto" e declare a limitação.
 - Escreva em português do Brasil, com frases objetivas para um relatório executivo.`;
@@ -190,10 +192,32 @@ async function persistCompleted(
   model: string,
 ) {
   const result = JSON.parse(outputText(response)) as Record<string, unknown>;
-  const sources = collectSources(response);
   const competitors = Array.isArray(result.competitors)
-    ? (result.competitors as Record<string, unknown>[])
+    ? (result.competitors as Record<string, unknown>[]).map((competitor) => ({
+        ...competitor,
+        equipment_profile: (Array.isArray(competitor.equipment_profile)
+          ? competitor.equipment_profile
+          : []
+        ).filter(
+          (item) =>
+            typeof item === "string" &&
+            item.length <= 80 &&
+            !/(não |nao |assum|infer|indiret|sem evidência|sem evidencia)/i.test(item),
+        ),
+      }))
     : [];
+  result.competitors = competitors;
+  const sourceMap = new Map(collectSources(response).map((source) => [source.url, source]));
+  competitors.forEach((competitor) => {
+    const name = String(competitor.name || "Fonte da academia");
+    const urls = Array.isArray(competitor.source_urls) ? competitor.source_urls : [];
+    urls.forEach((url) => {
+      if (typeof url === "string" && /^https?:\/\//.test(url)) {
+        sourceMap.set(url, { title: name, url });
+      }
+    });
+  });
+  const sources = [...sourceMap.values()];
 
   const { error: updateError } = await db
     .from("xray_market_research")
@@ -251,7 +275,7 @@ async function retrieveAndPersist(
       db,
       String(research.id),
       payload,
-      String(research.model || "gpt-5.6-terra"),
+      String(research.model || "gpt-5.4-nano"),
     );
     return "completed";
   }
@@ -298,7 +322,7 @@ async function launchResearch(
 ) {
   const openaiKey = Deno.env.get("OPENAI_API_KEY");
   if (!openaiKey) throw new Error("OPENAI_API_KEY não configurada.");
-  const model = Deno.env.get("OPENAI_MARKET_MODEL") || "gpt-5.6-terra";
+  const model = Deno.env.get("OPENAI_MARKET_MODEL") || "gpt-5.4-nano";
   const openaiResponse = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: { Authorization: `Bearer ${openaiKey}`, "Content-Type": "application/json" },

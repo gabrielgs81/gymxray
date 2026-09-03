@@ -543,7 +543,7 @@ export const QUESTIONS: Question[] = [
     key: "contato",
     type: "contact",
     title: "Para onde enviamos seu Raio-X?",
-    help: "Usamos seus dados apenas para entregar o diagnóstico.",
+    help: "Seu e-mail será usado para identificar e liberar o acesso ao relatório completo.",
     essential: true,
   },
 ];

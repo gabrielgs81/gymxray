@@ -16,6 +16,9 @@ interface Props {
   onSubmit: (patch: Answers) => void;
 }
 
+const validEmail = (value: string | undefined) =>
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value?.trim() ?? "");
+
 export function QuestionCard({ question, answers, warning, onSubmit }: Props) {
   const [draft, setDraft] = useState<Record<string, string>>({});
 
@@ -42,7 +45,11 @@ export function QuestionCard({ question, answers, warning, onSubmit }: Props) {
   const canSubmit = useMemo(() => {
     if (question.type === "location") return !!draft["cidade"]?.trim() && !!draft["estado"];
     if (question.type === "contact")
-      return !!draft["nome"]?.trim() && !!draft["telefone"]?.replace(/\D/g, "");
+      return (
+        !!draft["nome"]?.trim() &&
+        !!draft["telefone"]?.replace(/\D/g, "") &&
+        validEmail(draft["email"])
+      );
     if (question.type === "single") return true;
     return (draft[question.key] ?? "").trim() !== "";
   }, [draft, question]);
@@ -60,7 +67,7 @@ export function QuestionCard({ question, answers, warning, onSubmit }: Props) {
       onSubmit({
         nome: draft["nome"]!.trim(),
         telefone: draft["telefone"]!.trim(),
-        email: draft["email"]?.trim() || null,
+        email: draft["email"]!.trim().toLowerCase(),
       });
       return;
     }
@@ -236,10 +243,12 @@ export function QuestionCard({ question, answers, warning, onSubmit }: Props) {
             className="h-14 rounded-2xl bg-card text-lg"
           />
           <Input
+            type="email"
             inputMode="email"
             value={draft["email"] ?? ""}
             onChange={(e) => setDraft((d) => ({ ...d, email: e.target.value }))}
-            placeholder="E-mail (opcional)"
+            placeholder="E-mail para acessar o relatório"
+            required
             className="h-14 rounded-2xl bg-card text-lg"
           />
         </div>
